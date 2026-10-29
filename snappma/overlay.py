@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QCursor, QImage, QKeySequence, QPainter, QPen, QPixmap
-from PySide6.QtWidgets import QWidget
+from PySide6.QtGui import QColor, QCursor, QImage, QKeySequence, QPainter, QPen, QPixmap, QTextCursor
+from PySide6.QtWidgets import QFrame, QPlainTextEdit, QWidget
 
 from .annotations import (Item, ToolState, constrain_axis, constrain_square, is_degenerate, paint_item,
-                          render_result)
+                          render_result, text_font, text_rect)
 from .i18n import tr
 from .toolbar import Toolbar
 
@@ -22,6 +22,33 @@ HANDLE_CURSORS = {
 
 def rect_from_edges(x1: int, y1: int, x2: int, y2: int) -> QRect:
     return QRect(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
+
+
+class TextEditor(QPlainTextEdit):
+    """Edytor tekstu wpisywanego na zrzucie. Enter zatwierdza, Shift+Enter nowa linia, Esc odrzuca,
+    Ctrl+C bez zaznaczenia tekstu zatwierdza tekst i kopiuje zrzut."""
+    committed = Signal()
+    discarded = Signal()
+    copyRequested = Signal()
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setFrameStyle(QFrame.NoFrame)
+        self.setLineWrapMode(QPlainTextEdit.NoWrap)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.document().setDocumentMargin(0)
+        self.setCursor(Qt.IBeamCursor)
+
+    def keyPressEvent(self, ev) -> None:
+        if ev.key() == Qt.Key_Escape:
+            self.discarded.emit()
+        elif ev.key() in (Qt.Key_Return, Qt.Key_Enter) and not ev.modifiers() & Qt.ShiftModifier:
+            self.committed.emit()
+        elif ev.matches(QKeySequence.Copy) and not self.textCursor().hasSelection():
+            self.copyRequested.emit()
+        else:
+            super().keyPressEvent(ev)
 
 
 class CaptureOverlay(QWidget):
@@ -52,7 +79,11 @@ class CaptureOverlay(QWidget):
         self._anchor = QPoint()
         self._sel0 = QRect()
         self._prev_sel: QRect | None = None
-        self._grab_offset = QPoint()
+        self._grab_offset = QPointF()
+        self._drag_item: Item | None = None                 # przesuwany tekst
+        self._editor: TextEditor | None = None
+        self._editing: Item | None = None                   # istniejacy tekst edytowany ponownie
+        self._text_origin = QPointF()
 
         self.toolbar = Toolbar(state, self)
         self.toolbar.hide()
@@ -60,6 +91,7 @@ class CaptureOverlay(QWidget):
         self.toolbar.copy.connect(self.copy_selection)
         self.toolbar.cancel.connect(self.cancel)
         self.toolbar.toolChanged.connect(lambda _t: self._update_cursor(None))
+        self.toolbar.styleChanged.connect(self._style_changed)
 
     # ---------- wyswietlenie ----------
     def show_on_screen(self) -> None:
@@ -86,7 +118,8 @@ class CaptureOverlay(QWidget):
         p.save()
         p.setClipRect(sel)
         for it in self.items:
-            paint_item(p, it)
+            if it is not self._editing:
+                paint_item(p, it)
         if self._current is not None:
             paint_item(p, self._current)
         p.restore()
@@ -178,7 +211,10 @@ class CaptureOverlay(QWidget):
     def wheelEvent(self, ev) -> None:
         if self.phase == "edit":
             step = 1 if ev.angleDelta().y() > 0 else -1
-            self.toolbar.set_width(self.state.width + step)
+            if self.state.tool == "text":
+                self.toolbar.step_font_size(step)
+            else:
+                self.toolbar.set_width(self.state.width + step)
             self.update()
 
     def _press(self, pos: QPointF, button, mods) -> None:
@@ -186,6 +222,9 @@ class CaptureOverlay(QWidget):
             self.cancel()
             return
         if button != Qt.LeftButton:
+            return
+        if self._editor is not None:                     # klikniecie poza edytorem zatwierdza tekst
+            self._commit_text()
             return
         self.setFocus()
         if self.phase == "select":
@@ -196,6 +235,12 @@ class CaptureOverlay(QWidget):
         if handle:
             self._mode, self._sel0 = "resize:" + handle, QRect(self.sel)
             self.toolbar.hide()
+        elif inside and self.state.tool in (None, "text") and self._text_at(pos) is not None:
+            item = self._text_at(pos)
+            self._mode, self._drag_item = "move_text", item
+            self._grab_offset = item.points[0] - pos
+        elif self.state.tool == "text" and inside:
+            self._begin_text(self._clamp_to_sel(pos))
         elif self.state.tool and inside:
             self._begin_item(pos, mods)
         elif self.state.tool:
@@ -237,6 +282,8 @@ class CaptureOverlay(QWidget):
             r.moveLeft(min(max(r.x(), 0), self.width() - r.width()))
             r.moveTop(min(max(r.y(), 0), self.height() - r.height()))
             self.sel = r
+        elif self._mode == "move_text" and self._drag_item is not None:
+            self._drag_item.points = [self._clamp_to_sel(pos + self._grab_offset)]
         elif self._mode.startswith("resize"):
             self.sel = self._resized(self._mode.split(":")[1], pos)
         elif self._mode == "draw" and self._current is not None:
@@ -261,7 +308,9 @@ class CaptureOverlay(QWidget):
         if button != Qt.LeftButton or self._mode is None:
             return
         mode, self._mode = self._mode, None
-        if mode == "draw":
+        if mode == "move_text":
+            self._drag_item = None
+        elif mode == "draw":
             it, self._current = self._current, None
             if it is not None and not is_degenerate(it):
                 self.items.append(it)
@@ -288,6 +337,10 @@ class CaptureOverlay(QWidget):
         handle = self._handle_at(pos)
         if handle:
             self.setCursor(HANDLE_CURSORS[handle])
+        elif self.state.tool in (None, "text") and self.sel.contains(pos.toPoint()) and self._text_at(pos) is not None:
+            self.setCursor(Qt.SizeAllCursor)
+        elif self.state.tool == "text":
+            self.setCursor(Qt.IBeamCursor if self.sel.contains(pos.toPoint()) else Qt.ArrowCursor)
         elif self.state.tool:
             self.setCursor(Qt.CrossCursor if self.sel.contains(pos.toPoint()) else Qt.ArrowCursor)
         else:
@@ -308,10 +361,99 @@ class CaptureOverlay(QWidget):
         tb.show()
         tb.raise_()
 
+    # ---------- tekst ----------
+    def mouseDoubleClickEvent(self, ev) -> None:
+        pos = ev.position()
+        if self.phase == "edit" and ev.button() == Qt.LeftButton and self._editor is None \
+                and self.state.tool in (None, "text") and self.sel.contains(pos.toPoint()):
+            item = self._text_at(pos)
+            if item is not None:
+                self._mode, self._drag_item = None, None
+                self._begin_text(item.points[0], item)
+                return
+        self._press(pos, ev.button(), ev.modifiers())
+
+    def _text_at(self, pos: QPointF) -> Item | None:
+        for it in reversed(self.items):
+            if it.kind == "text" and it is not self._editing and text_rect(it).adjusted(-3, -3, 3, 3).contains(pos):
+                return it
+        return None
+
+    def _begin_text(self, pos: QPointF, item: Item | None = None) -> None:
+        self._text_origin = QPointF(pos)
+        self._editing = item
+        if item is not None:                             # pasek pokazuje ustawienia edytowanego tekstu
+            self.toolbar.set_color(item.color)
+            self.toolbar.set_font_size(item.size)
+        ed = TextEditor(self)
+        ed.setPlainText(item.text if item is not None else "")
+        ed.committed.connect(self._commit_text)
+        ed.discarded.connect(self._discard_text)
+        ed.copyRequested.connect(self.copy_selection)
+        ed.textChanged.connect(self._fit_editor)
+        self._editor = ed
+        self._style_editor()
+        ed.show()
+        ed.setFocus()
+        ed.moveCursor(QTextCursor.End)
+        self.update()
+
+    def _style_editor(self) -> None:
+        ed = self._editor
+        if ed is None:
+            return
+        ed.setFont(text_font(self.state.font_size))
+        ed.setStyleSheet(f"QPlainTextEdit {{ color: {self.state.color.name()}; background: rgba(0, 0, 0, 70);"
+                         f" border: 1px dashed #2D8CFF; padding: 0px; }}")
+        self._fit_editor()
+
+    def _fit_editor(self) -> None:
+        ed = self._editor
+        if ed is None:
+            return
+        r = text_rect(Item("text", self.state.color, 1, [self._text_origin], ed.toPlainText(), self.state.font_size))
+        ed.setGeometry(round(r.x()) - 1, round(r.y()) - 1, max(24, round(r.width()) + 16), round(r.height()) + 4)
+
+    def _style_changed(self) -> None:
+        self._style_editor()
+
+    def _close_editor(self) -> None:
+        ed, self._editor = self._editor, None
+        if ed is not None:
+            ed.hide()
+            ed.deleteLater()
+
+    def _commit_text(self) -> None:
+        ed = self._editor
+        if ed is None:
+            return
+        text = ed.toPlainText().rstrip("\n")
+        self._close_editor()
+        item, self._editing = self._editing, None
+        if item is not None:
+            if text.strip():
+                item.text, item.color, item.size = text, QColor(self.state.color), self.state.font_size
+            elif item in self.items:
+                self.items.remove(item)                  # wyczyszczony tekst znika
+        elif text.strip():
+            self.items.append(Item("text", QColor(self.state.color), self.state.width, [self._text_origin],
+                                   text, self.state.font_size))
+        self.setFocus()
+        self.update()
+
+    def _discard_text(self) -> None:
+        self._close_editor()
+        self._editing = None
+        self.setFocus()
+        self.update()
+
     # ---------- klawiatura i wynik ----------
     def keyPressEvent(self, ev) -> None:
         if ev.key() == Qt.Key_Escape:
-            self.cancel()
+            if self._editor is not None:
+                self._discard_text()
+            else:
+                self.cancel()
         elif ev.matches(QKeySequence.Copy) and self.phase == "edit":
             self.copy_selection()
         elif ev.matches(QKeySequence.Undo):
@@ -320,7 +462,9 @@ class CaptureOverlay(QWidget):
             super().keyPressEvent(ev)
 
     def undo(self) -> None:
-        if self.items:
+        if self._editor is not None:
+            self._discard_text()
+        elif self.items:
             self.items.pop()
             self.update()
 
@@ -328,6 +472,8 @@ class CaptureOverlay(QWidget):
         self.finished.emit(None)
 
     def copy_selection(self) -> None:
+        if self._editor is not None:
+            self._commit_text()
         if self.phase != "edit" or self.sel is None:
             return
         self.finished.emit(render_result(self.shot, self.sel, self.size(), self.items))

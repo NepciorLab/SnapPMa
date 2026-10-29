@@ -5,11 +5,14 @@ import math
 from dataclasses import dataclass, field
 
 from PySide6.QtCore import QPointF, QRect, QRectF, QSize, Qt
-from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPen, QPolygonF
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter, QPainterPath, QPen, QPolygonF
 
-TOOLS = ("pen", "line", "arrow", "rect", "pointer")
+TOOLS = ("pen", "line", "arrow", "rect", "text", "pointer")
 PRESET_COLORS = ("#E53935", "#FB8C00", "#FDD835", "#43A047", "#1E88E5", "#000000", "#FFFFFF")
 MIN_WIDTH, MAX_WIDTH = 1, 30
+FONT_FAMILY = "Arial"
+FONT_SIZES = (10, 12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 64, 72, 96)     # piksele; domyslnie 20
+DEFAULT_FONT_SIZE = 20
 
 # Ksztalt kursora myszy (czubek w 0,0), wysokosc ok. 18,6 jednostek.
 POINTER_SHAPE = ((0.0, 0.0), (0.0, 16.0), (3.6, 12.4), (6.2, 18.6), (8.6, 17.6), (6.0, 11.6), (11.0, 11.6))
@@ -19,10 +22,11 @@ POINTER_HEIGHT = 18.6
 class ToolState:
     """Wspolne ustawienia narzedzi dla wszystkich nakladek (po jednej na monitor)."""
 
-    def __init__(self, color: str | QColor = "#E53935", width: int = 4):
+    def __init__(self, color: str | QColor = "#E53935", width: int = 4, font_size: int = DEFAULT_FONT_SIZE):
         self.tool: str | None = None
         self.color = QColor(color)
         self.width = max(MIN_WIDTH, min(MAX_WIDTH, int(width)))
+        self.font_size = max(FONT_SIZES[0], min(FONT_SIZES[-1], int(font_size)))
 
 
 @dataclass
@@ -30,7 +34,9 @@ class Item:
     kind: str                                   # jedno z TOOLS
     color: QColor
     width: int
-    points: list[QPointF] = field(default_factory=list)   # pen: slad; line/arrow/rect: [start, koniec]; pointer: [czubek]
+    points: list[QPointF] = field(default_factory=list)   # pen: slad; line/arrow/rect: [start, koniec]; pointer: [czubek]; text: [lewy gorny rog]
+    text: str = ""                                        # tylko text
+    size: int = DEFAULT_FONT_SIZE                         # tylko text: wysokosc czcionki w pikselach
 
 
 def constrain_axis(start: QPointF, end: QPointF) -> QPointF:
@@ -45,6 +51,20 @@ def constrain_square(start: QPointF, end: QPointF) -> QPointF:
     side = max(abs(end.x() - start.x()), abs(end.y() - start.y()))
     return QPointF(start.x() + math.copysign(side, end.x() - start.x() or 1.0),
                    start.y() + math.copysign(side, end.y() - start.y() or 1.0))
+
+
+def text_font(size: int) -> QFont:
+    font = QFont(FONT_FAMILY)
+    font.setPixelSize(int(size))
+    return font
+
+
+def text_rect(it: Item) -> QRectF:
+    """Prostokat tekstu (lewy gorny rog = points[0]); ta sama miara w edytorze, podgladzie i wyniku."""
+    fm = QFontMetricsF(text_font(it.size))
+    lines = (it.text or " ").split("\n")
+    width = max(fm.horizontalAdvance(line) for line in lines)
+    return QRectF(it.points[0].x(), it.points[0].y(), width, fm.lineSpacing() * len(lines))
 
 
 def pointer_size(width: int) -> float:
@@ -120,6 +140,11 @@ def paint_item(p: QPainter, it: Item) -> None:
         p.setPen(pen)
         p.setBrush(Qt.NoBrush)
         p.drawRect(QRectF(pts[0], pts[1]).normalized())
+    elif it.kind == "text" and it.text.strip():
+        p.setRenderHint(QPainter.TextAntialiasing, True)
+        p.setFont(text_font(it.size))
+        p.setPen(it.color)
+        p.drawText(text_rect(it), Qt.AlignLeft | Qt.AlignTop | Qt.TextDontClip, it.text)
     elif it.kind == "pointer":
         poly, scale = pointer_polygon(pts[0], it.width)
         # kursor myszy zawsze jest bialy z cienka czarna obwodka, niezaleznie od wybranego koloru
@@ -131,6 +156,8 @@ def paint_item(p: QPainter, it: Item) -> None:
 
 def is_degenerate(it: Item) -> bool:
     """Linia/strzalka/prostokat bez dlugosci nie sa zapisywane."""
+    if it.kind == "text":
+        return not it.text.strip()
     if it.kind in ("line", "arrow", "rect"):
         return len(it.points) < 2 or it.points[0] == it.points[1]
     return not it.points

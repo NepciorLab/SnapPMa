@@ -20,5 +20,6 @@ Program pod Windows 11 (Python + PySide6): PrintScreen -> zaznaczenie prostokąt
 
 ## Ustalenia
 - Nie zweryfikowane na prawdziwym ekranie (powstało, gdy użytkownik grał): haczyk klawiatury, skalowanie DPI na wielu monitorach, fokus nakładki, menu zasobnika przy lewym kliknięciu, okno wyboru własnego koloru nad nakładką, zapis wydania i aktualizacja z GitHuba. Po pierwszym uruchomieniu na ekranie sprawdzić te punkty.
-- Nazwa programu, pakietu, katalogu i plików to SnapPMa (wcześniej SnapMark). Repozytorium `NepciorLab/SnapPMa` (prywatne; aktualizacja z GitHuba używa niezalogowanego API, więc przy prywatnym repozytorium nie zadziała), wersja startowa 0.0.1.
+- Nazwa programu, pakietu, katalogu i plików to SnapPMa (wcześniej SnapMark). Repozytorium `NepciorLab/SnapPMa` jest publiczne (aktualizacja z GitHuba używa niezalogowanego API, więc musi takie być). Wydania: 0.0.1 (start), 0.0.2 (narzędzie Tekst).
+- Narzędzie Tekst: `Item(kind="text", text, size)`, czcionka Arial w pikselach (`annotations.text_font`, `FONT_SIZES`, `Tools/font_size`), `text_rect` to jedna miara dla edytora (`overlay.TextEditor`, wpisuje się wprost na zrzucie), podglądu i wyniku. Enter zatwierdza, Shift+Enter nowa linia, Esc odrzuca sam edytor, Ctrl+C w edytorze bez zaznaczenia zatwierdza i kopiuje zrzut; zatwierdzony tekst przesuwa się przeciągnięciem (narzędzie Tekst albo brak narzędzia), dwuklik edytuje.
 - Ikony pędzla, linii, strzałki i prostokąta na pasku są żółte (`icons.YELLOW`), reszta jasna.

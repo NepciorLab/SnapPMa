@@ -12,7 +12,7 @@ Alt+PrintScreen) działają jak zwykle.
 1. PrintScreen: ekran przyciemnia się, przeciągnij myszą prostokąt (prawy przycisk albo Esc anuluje).
 2. Zaznaczenie można zmienić: uchwyty na bokach i rogach zmieniają rozmiar, przeciągnięcie wnętrza (bez wybranego narzędzia) przesuwa.
 3. Pasek narzędzi pod zaznaczeniem (albo nad nim, gdy zabrakło miejsca):
-   - **Pędzel** (rysowanie odręczne), **Linia**, **Strzałka**, **Prostokąt**, **Strzałka jak kursor myszy** (zawsze biała z cienką czarną obwódką; kliknięcie stawia, przeciągnięcie przesuwa),
+   - **Pędzel** (rysowanie odręczne), **Linia**, **Strzałka**, **Prostokąt**, **Tekst** (Arial, rozmiar z listy na pasku albo rolka myszy przy narzędziu Tekst; kliknij i pisz, Enter zatwierdza, Shift+Enter nowa linia, Esc odrzuca; zatwierdzony tekst przeciągasz myszą, dwuklik edytuje), **Strzałka jak kursor myszy** (zawsze biała z cienką czarną obwódką; kliknięcie stawia, przeciągnięcie przesuwa),
    - **Cofnij** (Ctrl+Z), **kolor** (7 gotowych + „…” własny), **grubość linii** (suwak albo rolka myszy), **kopiuj** (zielony ptaszek), **anuluj**.
    - **Shift** przy linii i strzałce: linia dokładnie pozioma albo pionowa; przy prostokącie: kwadrat.
    - Ponowne kliknięcie wybranego narzędzia wyłącza je (wtedy można przesuwać i zmieniać zaznaczenie).

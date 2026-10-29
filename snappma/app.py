@@ -25,7 +25,7 @@ class SnapPMaApp(QObject):
     def __init__(self, settings: Settings, quiet_start: bool = False):
         super().__init__()
         self.settings = settings
-        self.state = ToolState(settings.get("Tools/color"), settings.get("Tools/width"))
+        self.state = ToolState(settings.get("Tools/color"), settings.get("Tools/width"), settings.get("Tools/font_size"))
         self.session = CaptureSession(self.state, self)
         self.session.done.connect(self._on_done)
         self.dialog: SettingsDialog | None = None
@@ -84,6 +84,7 @@ class SnapPMaApp(QObject):
     def _on_done(self, image) -> None:
         self.settings.set("Tools/color", self.state.color.name())
         self.settings.set("Tools/width", self.state.width)
+        self.settings.set("Tools/font_size", self.state.font_size)
         if image is None:
             return
         QGuiApplication.clipboard().setImage(image)

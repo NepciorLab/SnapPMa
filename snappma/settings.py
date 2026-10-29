@@ -15,6 +15,7 @@ DEFAULTS: dict[str, object] = {
     "Program/github_repo": GITHUB_REPO,
     "Tools/color": "#E53935",
     "Tools/width": 4,
+    "Tools/font_size": 20,
 }
 
 

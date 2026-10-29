@@ -46,6 +46,10 @@ def tool_icon(name: str, size: int = 24) -> QIcon:
         pen.setJoinStyle(Qt.MiterJoin)
         p.setPen(pen)
         p.drawRect(QRectF(4, 6, 16, 12))
+    elif name == "text":
+        p.drawLine(QPointF(6, 6.5), QPointF(18, 6.5))
+        p.drawLine(QPointF(12, 6.5), QPointF(12, 19))
+        p.drawLine(QPointF(9.5, 19), QPointF(14.5, 19))
     elif name == "pointer":
         s = 19.0 / POINTER_HEIGHT
         poly = QPolygonF([QPointF(6 + x * s, 2.5 + y * s) for x, y in POINTER_SHAPE])
