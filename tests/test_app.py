@@ -95,3 +95,12 @@ def test_startup_notification_can_be_disabled(qapp, tmp_path, monkeypatch):
     second = app_module.SnapPMaApp(settings, quiet_start=False)
     second.tray.hide()
     assert len(shown) == 1
+
+
+def test_saved_remembers_folder_and_quality(snappma, tmp_path):
+    snappma.state.save_dir = str(tmp_path)
+    snappma._on_saved(str(tmp_path / "a.jpg"))
+    assert snappma.settings.get("Program/save_dir") == str(tmp_path)
+    snappma.settings.set("Program/jpeg_quality", 70)
+    snappma._dialog_closed(0)
+    assert snappma.state.jpeg_quality == 70

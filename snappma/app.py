@@ -25,9 +25,11 @@ class SnapPMaApp(QObject):
     def __init__(self, settings: Settings, quiet_start: bool = False):
         super().__init__()
         self.settings = settings
-        self.state = ToolState(settings.get("Tools/color"), settings.get("Tools/width"), settings.get("Tools/font_size"))
+        self.state = ToolState(settings.get("Tools/color"), settings.get("Tools/width"), settings.get("Tools/font_size"),
+                                settings.get("Program/jpeg_quality"), settings.get("Program/save_dir"))
         self.session = CaptureSession(self.state, self)
         self.session.done.connect(self._on_done)
+        self.session.saved.connect(self._on_saved)
         self.dialog: SettingsDialog | None = None
         self._pending_update: str | None = None
         self._manual_check = False
@@ -92,6 +94,12 @@ class SnapPMaApp(QObject):
             self.tray.showMessage(APP_NAME, tr("Copied to the clipboard") + f" ({image.width()} × {image.height()})",
                                   QSystemTrayIcon.Information, 2000)
 
+    def _on_saved(self, path: str) -> None:
+        self.settings.set("Program/save_dir", self.state.save_dir)
+        self._on_done(None)                      # zapamietuje kolor, grubosc i rozmiar czcionki
+        if self.settings.get("Program/notify"):
+            self.tray.showMessage(APP_NAME, tr("Saved:") + f" {path}", QSystemTrayIcon.Information, 3000)
+
     # ---------- tray i ustawienia ----------
     def _on_tray(self, reason) -> None:
         if reason == QSystemTrayIcon.Trigger:
@@ -113,6 +121,7 @@ class SnapPMaApp(QObject):
 
     def _dialog_closed(self, _result) -> None:
         self.dialog = None
+        self.state.jpeg_quality = int(self.settings.get("Program/jpeg_quality"))
         if self.settings.get("Program/auto_update"):
             QTimer.singleShot(1000, self._auto_check)
 

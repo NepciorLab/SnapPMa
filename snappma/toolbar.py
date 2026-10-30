@@ -79,6 +79,7 @@ class Toolbar(QFrame):
     toolChanged = Signal(object)        # nazwa narzedzia albo None
     styleChanged = Signal()             # zmiana koloru, grubosci albo rozmiaru czcionki
     undo = Signal()
+    save = Signal()
     copy = Signal()
     cancel = Signal()
 
@@ -144,6 +145,9 @@ class Toolbar(QFrame):
         lay.addWidget(self.cmb_font)
         lay.addWidget(self._separator())
 
+        self.btn_save = self._button("save", tr("Save as JPG (Ctrl+S)"))
+        self.btn_save.clicked.connect(lambda *_: self.save.emit())
+        lay.addWidget(self.btn_save)
         self.btn_copy = self._button("copy", tr("Copy to clipboard (Ctrl+C)"))
         self.btn_copy.clicked.connect(lambda *_: self.copy.emit())
         lay.addWidget(self.btn_copy)

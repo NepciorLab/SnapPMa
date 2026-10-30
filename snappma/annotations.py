@@ -22,11 +22,14 @@ POINTER_HEIGHT = 18.6
 class ToolState:
     """Wspolne ustawienia narzedzi dla wszystkich nakladek (po jednej na monitor)."""
 
-    def __init__(self, color: str | QColor = "#E53935", width: int = 4, font_size: int = DEFAULT_FONT_SIZE):
+    def __init__(self, color: str | QColor = "#E53935", width: int = 4, font_size: int = DEFAULT_FONT_SIZE,
+                 jpeg_quality: int = 92, save_dir: str = ""):
         self.tool: str | None = None
         self.color = QColor(color)
         self.width = max(MIN_WIDTH, min(MAX_WIDTH, int(width)))
         self.font_size = max(FONT_SIZES[0], min(FONT_SIZES[-1], int(font_size)))
+        self.jpeg_quality = max(1, min(100, int(jpeg_quality)))
+        self.save_dir = save_dir                    # ostatnio uzyty katalog zapisu
 
 
 @dataclass
@@ -161,6 +164,15 @@ def is_degenerate(it: Item) -> bool:
     if it.kind in ("line", "arrow", "rect"):
         return len(it.points) < 2 or it.points[0] == it.points[1]
     return not it.points
+
+
+def save_jpeg(img: QImage, path: str, quality: int) -> str:
+    """Zapisuje obraz jako JPG i zwraca faktyczna sciezke (dopisuje .jpg, gdy brak rozszerzenia). Rzuca OSError."""
+    if not path.lower().endswith((".jpg", ".jpeg")):
+        path += ".jpg"
+    if not img.save(path, "JPG", max(1, min(100, int(quality)))):
+        raise OSError(f"cannot write {path}")
+    return path
 
 
 def render_result(shot: QImage, sel: QRect, view_size: QSize, items: list[Item]) -> QImage:

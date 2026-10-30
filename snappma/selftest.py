@@ -69,7 +69,21 @@ def check_filter() -> bool:
             and f.handle(WM_KEYDOWN, 0, False, True, False) == (False, False))
 
 
+def check_jpeg_save() -> bool:
+    import os
+    import tempfile
+
+    from .annotations import save_jpeg
+    img = make_shot()
+    img.fill(QColor("#336699"))
+    with tempfile.TemporaryDirectory() as folder:
+        path = save_jpeg(img, os.path.join(folder, "t"), 90)         # bez rozszerzenia: dopisuje .jpg
+        back = QImage(path)
+        return path.endswith(".jpg") and (back.width(), back.height()) == (W, H) and abs(QColor(back.pixel(5, 5)).blue() - 0x99) < 12
+
+
 CHECKS: list[tuple[str, Callable[[], bool]]] = [
+    ("JPEG save (plugin)", check_jpeg_save),
     ("selection, tools, copy", check_selection_and_drawing),
     ("PrintScreen filter", check_filter),
     ("shift constrain", lambda: constrain_axis(QPointF(0, 0), QPointF(10, 3)) == QPointF(10, 0)),

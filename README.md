@@ -13,7 +13,7 @@ Alt+PrintScreen) działają jak zwykle.
 2. Zaznaczenie można zmienić: uchwyty na bokach i rogach zmieniają rozmiar, przeciągnięcie wnętrza (bez wybranego narzędzia) przesuwa.
 3. Pasek narzędzi pod zaznaczeniem (albo nad nim, gdy zabrakło miejsca):
    - **Pędzel** (rysowanie odręczne), **Linia**, **Strzałka**, **Prostokąt**, **Tekst** (Arial, rozmiar z listy na pasku albo rolka myszy przy narzędziu Tekst; kliknij i pisz, Enter zatwierdza, Shift+Enter nowa linia, Esc odrzuca; zatwierdzony tekst przeciągasz myszą, dwuklik edytuje), **Strzałka jak kursor myszy** (zawsze biała z cienką czarną obwódką; kliknięcie stawia, przeciągnięcie przesuwa),
-   - **Cofnij** (Ctrl+Z), **kolor** (7 gotowych + „…” własny), **grubość linii** (suwak albo rolka myszy), **kopiuj** (zielony ptaszek), **anuluj**.
+   - **Cofnij** (Ctrl+Z), **kolor** (7 gotowych + „…” własny), **grubość linii** (suwak albo rolka myszy), **zapisz jako JPG** (dyskietka albo Ctrl+S: okno wyboru pliku, pamięta ostatni katalog, jakość JPG w Ustawieniach; zapis kończy zrzut bez kopiowania do schowka), **kopiuj** (zielony ptaszek), **anuluj**.
    - **Shift** przy linii i strzałce: linia dokładnie pozioma albo pionowa; przy prostokącie: kwadrat.
    - Ponowne kliknięcie wybranego narzędzia wyłącza je (wtedy można przesuwać i zmieniać zaznaczenie).
 4. **Ctrl+C** (albo zielony ptaszek) kopiuje wycinek razem z adnotacjami do schowka. Rozmiar zrzutu to rozmiar w pikselach fizycznych ekranu.

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
-                               QMessageBox, QPushButton, QVBoxLayout)
+                               QMessageBox, QPushButton, QSpinBox, QVBoxLayout)
 
 from . import autostart
 from .i18n import tr
@@ -33,6 +33,9 @@ class SettingsDialog(QDialog):
         self.cb_notify.setChecked(bool(settings.get("Program/notify")))
         self.ed_repo = QLineEdit(str(settings.get("Program/github_repo")))
         self.ed_repo.setPlaceholderText("owner/name")
+        self.sp_quality = QSpinBox()
+        self.sp_quality.setRange(1, 100)
+        self.sp_quality.setValue(int(settings.get("Program/jpeg_quality")))
         self.cmb_lang = QComboBox()
         self.cmb_lang.addItem(tr("Automatic (system)"), "auto")
         for code, name in (("en", "English"), ("pl", "Polski"), ("de", "Deutsch")):
@@ -45,6 +48,7 @@ class SettingsDialog(QDialog):
         form.addRow(tr("GitHub repository (owner/name)"), self.ed_repo)
         form.addRow(self.cb_notify_start)
         form.addRow(self.cb_notify)
+        form.addRow(tr("JPEG quality (1-100)"), self.sp_quality)
         form.addRow(tr("Language"), self.cmb_lang)
         note = QLabel(tr("The language changes after restarting the program."))
         note.setStyleSheet("color: gray;")
@@ -91,6 +95,7 @@ class SettingsDialog(QDialog):
         s.set("Program/auto_update", self.cb_update.isChecked())
         s.set("Program/notify_start", self.cb_notify_start.isChecked())
         s.set("Program/notify", self.cb_notify.isChecked())
+        s.set("Program/jpeg_quality", self.sp_quality.value())
         s.set("Program/language", self.cmb_lang.currentData())
         s.set("Program/autostart", self.cb_autostart.isChecked())
         try:

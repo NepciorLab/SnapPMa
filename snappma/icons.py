@@ -63,6 +63,14 @@ def tool_icon(name: str, size: int = 24) -> QIcon:
         path.cubicTo(19, 11, 14, 8.5, 8.5, 10)
         p.drawPath(path)
         p.drawPolyline(QPolygonF([QPointF(11.5, 5.5), QPointF(7, 10.2), QPointF(11.8, 14.2)]))
+    elif name == "save":
+        pen.setColor(LIGHT)
+        pen.setWidthF(1.8)
+        p.setPen(pen)
+        p.drawPolygon(QPolygonF([QPointF(5, 4.5), QPointF(16, 4.5), QPointF(19.5, 8), QPointF(19.5, 19.5),
+                                 QPointF(5, 19.5)]))
+        p.drawRect(QRectF(8.5, 4.5, 6.5, 4.5))
+        p.drawRect(QRectF(8, 13, 8, 6.5))
     elif name == "copy":
         p.setPen(QPen(QColor("#5CD65C"), 2.8, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         p.drawPolyline(QPolygonF([QPointF(4.5, 12.5), QPointF(9.8, 17.8), QPointF(19.5, 6.5)]))

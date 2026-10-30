@@ -13,6 +13,8 @@ DEFAULTS: dict[str, object] = {
     "Program/notify_start": True,        # komunikat w obszarze powiadomien po uruchomieniu programu
     "Program/notify": True,              # komunikat w obszarze powiadomien po skopiowaniu
     "Program/github_repo": GITHUB_REPO,
+    "Program/jpeg_quality": 92,          # jakosc zapisu JPG 1-100
+    "Program/save_dir": "",              # ostatni katalog zapisu
     "Tools/color": "#E53935",
     "Tools/width": 4,
     "Tools/font_size": 20,

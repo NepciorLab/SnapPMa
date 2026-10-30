@@ -1,14 +1,18 @@
 """Pelnoekranowa nakladka jednego monitora: zaznaczanie obszaru, rysowanie adnotacji, kopiowanie."""
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal
+from datetime import datetime
+from pathlib import Path
+
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QStandardPaths, Qt, Signal
 from PySide6.QtGui import QColor, QCursor, QImage, QKeySequence, QPainter, QPen, QPixmap, QTextCursor
-from PySide6.QtWidgets import QFrame, QPlainTextEdit, QWidget
+from PySide6.QtWidgets import QFileDialog, QFrame, QMessageBox, QPlainTextEdit, QWidget
 
 from .annotations import (Item, ToolState, constrain_axis, constrain_square, is_degenerate, paint_item,
-                          render_result, text_font, text_rect)
+                          render_result, save_jpeg, text_font, text_rect)
 from .i18n import tr
 from .toolbar import Toolbar
+from .version import APP_NAME
 
 ACCENT = QColor("#2D8CFF")
 HANDLE_HIT = 8          # promien chwytania uchwytu (piksele okna)
@@ -54,6 +58,7 @@ class TextEditor(QPlainTextEdit):
 class CaptureOverlay(QWidget):
     finished = Signal(object)       # QImage (skopiowano) albo None (anulowano)
     started = Signal()              # uzytkownik zaczal zaznaczac na tym monitorze
+    saved = Signal(str)             # zrzut zapisano do pliku JPG (sciezka)
 
     def __init__(self, screen, shot: QImage, state: ToolState):
         super().__init__(None, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
@@ -90,6 +95,7 @@ class CaptureOverlay(QWidget):
         self.toolbar.undo.connect(self.undo)
         self.toolbar.copy.connect(self.copy_selection)
         self.toolbar.cancel.connect(self.cancel)
+        self.toolbar.save.connect(self.save_selection)
         self.toolbar.toolChanged.connect(lambda _t: self._update_cursor(None))
         self.toolbar.styleChanged.connect(self._style_changed)
 
@@ -456,6 +462,8 @@ class CaptureOverlay(QWidget):
                 self.cancel()
         elif ev.matches(QKeySequence.Copy) and self.phase == "edit":
             self.copy_selection()
+        elif ev.matches(QKeySequence.Save) and self.phase == "edit":
+            self.save_selection()
         elif ev.matches(QKeySequence.Undo):
             self.undo()
         else:
@@ -470,6 +478,35 @@ class CaptureOverlay(QWidget):
 
     def cancel(self) -> None:
         self.finished.emit(None)
+
+    def _ask_save_path(self) -> str:
+        """Okno wyboru pliku (w testach podmieniane)."""
+        folder = self.state.save_dir or QStandardPaths.writableLocation(QStandardPaths.PicturesLocation) \
+            or str(Path.home())
+        name = f"{APP_NAME}_{datetime.now():%Y-%m-%d_%H-%M-%S}.jpg"
+        path, _ = QFileDialog.getSaveFileName(self, tr("Save screenshot as JPG"), str(Path(folder) / name),
+                                              tr("JPEG image (*.jpg *.jpeg)"))
+        return path
+
+    def save_selection(self) -> None:
+        """Zapisuje zaznaczony fragment z adnotacjami jako JPG i konczy zrzut; anulowanie okna zostawia edycje."""
+        if self._editor is not None:
+            self._commit_text()
+        if self.phase != "edit" or self.sel is None:
+            return
+        path = self._ask_save_path()
+        self.activateWindow()
+        self.setFocus()
+        if not path:
+            return
+        img = render_result(self.shot, self.sel, self.size(), self.items)
+        try:
+            path = save_jpeg(img, path, self.state.jpeg_quality)
+        except OSError as exc:
+            QMessageBox.warning(self, APP_NAME, f"{tr('Could not save the file.')}\n{exc}")
+            return
+        self.state.save_dir = str(Path(path).parent)
+        self.saved.emit(path)
 
     def copy_selection(self) -> None:
         if self._editor is not None:

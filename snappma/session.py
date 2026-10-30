@@ -11,6 +11,7 @@ from .overlay import CaptureOverlay
 
 class CaptureSession(QObject):
     done = Signal(object)           # QImage albo None
+    saved = Signal(str)             # zrzut zapisano do pliku JPG
 
     def __init__(self, state: ToolState, parent=None):
         super().__init__(parent)
@@ -33,6 +34,7 @@ class CaptureSession(QObject):
         for screen, image in shots:
             ov = CaptureOverlay(screen, image, self.state)
             ov.finished.connect(self._finish)
+            ov.saved.connect(self._saved)
             self.overlays.append(ov)
             ov.show_on_screen()
         under = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
@@ -42,6 +44,14 @@ class CaptureSession(QObject):
 
     def cancel(self) -> None:
         self._finish(None)
+
+    def _saved(self, path: str) -> None:
+        if not self.overlays:
+            return
+        overlays, self.overlays = self.overlays, []
+        for ov in overlays:
+            ov.close()
+        self.saved.emit(path)
 
     def _finish(self, image) -> None:
         if not self.overlays:
